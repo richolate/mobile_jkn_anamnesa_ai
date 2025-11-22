@@ -1,0 +1,11 @@
+{
+  "name": "mobile-jkn-web",
+  "private": true,
+  "scripts": {
+    "vercel-build": "bash ./scripts/vercel-build.sh",
+    "build:web": "bash ./scripts/vercel-build.sh"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

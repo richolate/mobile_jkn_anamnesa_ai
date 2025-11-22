@@ -198,6 +198,48 @@ APK tersimpan di: `build/app/outputs/flutter-apk/app-debug.apk`    └── app
 
 
 
+## 🌐 Demo via Vercel
+
+Gunakan konfigurasi `vercel.json` dan skrip `scripts/vercel-build.sh` yang baru untuk menerbitkan build Flutter Web secara otomatis di Vercel.
+
+### 1. Siapkan lingkungan lokal
+
+- Pastikan Flutter Web aktif: `flutter config --enable-web`
+- Uji build sebelum deploy:
+
+```bash
+npm run build:web
+```
+
+Perintah di atas akan mengunduh Flutter SDK (menggunakan cache `.vercel/cache` bila tersedia) dan menghasilkan artefak di `build/web`.
+
+### 2. Hubungkan repo ke Vercel
+
+1. Buka [vercel.com](https://vercel.com) dan pilih **Add New Project → Import Git Repository**.
+2. Pilih repositori `mobile_jkn_anamnesi_ai` dari GitHub Anda.
+3. Pada pengaturan proyek:
+  - **Framework preset**: `Other`
+  - **Build command**: `npm run vercel-build`
+  - **Output directory**: `build/web`
+  - **Install command**: biarkan default (`npm install`)
+4. Tambahkan Environment Variables penting melalui tab **Settings → Environment Variables**:
+  - `GEMINI_API_KEY` → isi dengan API key Google Gemini Anda
+  - `RAG_SERVER_URL` → isi dengan endpoint server RAG Anda
+5. Klik **Deploy**. Vercel akan menjalankan skrip build dan meng-host hasilnya sebagai aplikasi web statis.
+
+### 3. Kustomisasi build di Vercel
+
+- Secara bawaan skrip akan mengambil Flutter `3.24.3` kanal `stable`. Override versi bila diperlukan:
+
+```bash
+FLUTTER_VERSION=3.27.0 FLUTTER_CHANNEL=stable npm run vercel-build
+```
+
+- Jika Anda membutuhkan cache bersih pada Vercel, hapus folder `.vercel/cache` melalui dashboard (Project → Settings → Git → Clear Build Cache).
+
+Setelah konfigurasi ini, setiap push ke branch yang terhubung akan otomatis membangun dan menerbitkan demo web terbaru di Vercel.
+
+
 ### Release APK (untuk production)assets/
 
 ```bash├── images/                   # Images
