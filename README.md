@@ -211,9 +211,9 @@ Gunakan konfigurasi `vercel.json` dan skrip `scripts/vercel-build.sh` yang baru 
 npm run build:web
 ```
 
-Perintah di atas akan mengunduh Flutter SDK (menggunakan cache `.vercel/cache` bila tersedia) dan menghasilkan artefak di `build/web`.
+Perintah di atas (jalan­kan via Git Bash/WSL karena memakai Bash) akan mengunduh Flutter SDK 3.32.5 (kanal stable), menandai cache `.vercel/cache/flutter-<versi>` sebagai `git safe.directory`, lalu menghasilkan artefak di `build/web`.
 
-> ℹ️ **Catatan root warning**: Vercel menjalankan build sebagai user `root`. Skrip `scripts/vercel-build.sh` kini otomatis mengekspor `FLUTTER_ALLOW_ROOT=1`, `CI=true`, dan `FLUTTER_SUPPRESS_ANALYTICS=1` sehingga peringatan “Woah! You appear to be trying to run flutter as root” diabaikan secara aman dan proses build tetap non-interaktif.
+> ℹ️ **Catatan root & git warning**: Build di Vercel berjalan sebagai user `root`. Skrip `scripts/vercel-build.sh` sudah men-set `FLUTTER_ALLOW_ROOT=1`, `CI=true`, `FLUTTER_SUPPRESS_ANALYTICS=1`, mematikan animasi CLI, serta menjalankan `git config --global --add safe.directory <cache_flutter>`. Jadi pesan “Woah! You appear to be trying to run flutter as root” dan `fatal: detected dubious ownership` tidak lagi menghentikan build.
 
 ### 2. Hubungkan repo ke Vercel
 
@@ -224,20 +224,23 @@ Perintah di atas akan mengunduh Flutter SDK (menggunakan cache `.vercel/cache` b
   - **Build command**: `npm run vercel-build`
   - **Output directory**: `build/web`
   - **Install command**: biarkan default (`npm install`)
-4. Tambahkan Environment Variables penting melalui tab **Settings → Environment Variables**:
-  - `GEMINI_API_KEY` → isi dengan API key Google Gemini Anda
-  - `RAG_SERVER_URL` → isi dengan endpoint server RAG Anda
+4. Tambahkan Environment Variables penting melalui tab **Settings → Environment Variables** (scope: Production + Preview):
+   - `GEMINI_API_KEY` → isi dengan API key Google Gemini Anda
+   - `RAG_SERVER_URL` → isi dengan endpoint server RAG Anda
+   - Opsional: `FLUTTER_VERSION`, `FLUTTER_CHANNEL`, atau `FLUTTER_ARCHIVE` jika ingin mencoba build eksperimen.
 5. Klik **Deploy**. Vercel akan menjalankan skrip build dan meng-host hasilnya sebagai aplikasi web statis.
 
 ### 3. Kustomisasi build di Vercel
 
-- Secara bawaan skrip akan mengambil Flutter `3.24.3` kanal `stable`. Override versi bila diperlukan:
+- Secara bawaan skrip akan mengambil Flutter `3.32.5` kanal `stable`. Override versi bila diperlukan:
 
 ```bash
-FLUTTER_VERSION=3.27.0 FLUTTER_CHANNEL=stable npm run vercel-build
+FLUTTER_VERSION=3.33.0 FLUTTER_CHANNEL=beta npm run vercel-build
 ```
 
 - Jika Anda membutuhkan cache bersih pada Vercel, hapus folder `.vercel/cache` melalui dashboard (Project → Settings → Git → Clear Build Cache).
+- Bila build gagal di langkah unduh Flutter, cukup redeploy setelah koneksi stabil; cache ~700 MB hanya perlu sekali.
+- Warning Node versi (`"engines": { "node": ">=18" }`) aman diabaikan karena runtime Vercel sudah berada di Node 18.
 
 Setelah konfigurasi ini, setiap push ke branch yang terhubung akan otomatis membangun dan menerbitkan demo web terbaru di Vercel.
 

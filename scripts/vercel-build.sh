@@ -6,7 +6,7 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CACHE_DIR="${VERCEL_CACHE_DIR:-$REPO_ROOT/.vercel/cache}"
-FLUTTER_VERSION="${FLUTTER_VERSION:-3.24.3}"
+FLUTTER_VERSION="${FLUTTER_VERSION:-3.32.5}"
 FLUTTER_CHANNEL="${FLUTTER_CHANNEL:-stable}"
 FLUTTER_ARCHIVE="flutter_linux_${FLUTTER_VERSION}-${FLUTTER_CHANNEL}.tar.xz"
 FLUTTER_SDK_DIR="$CACHE_DIR/flutter-${FLUTTER_VERSION}-${FLUTTER_CHANNEL}"
@@ -30,9 +30,12 @@ export CI=${CI:-true}
 export PUB_CACHE="$CACHE_DIR/pub-cache"
 mkdir -p "$PUB_CACHE"
 
+git config --global --add safe.directory "$FLUTTER_SDK_DIR" >/dev/null 2>&1 || true
+
 pushd "$REPO_ROOT" >/dev/null
 
 flutter config --enable-web
+flutter config --no-analytics --no-cli-animations
 flutter --version
 flutter pub get
 flutter build web --release --no-tree-shake-icons
