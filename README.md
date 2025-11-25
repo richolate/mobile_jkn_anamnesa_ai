@@ -114,19 +114,61 @@ http: ^1.6.0                    # API calls- **WebView Flutter**: Untuk integras
 
 - **Shared Preferences**: Local storage
 
-### Prerequisites- **Flutter SVG**: SVG support
+### Prerequisites
 
-- Flutter SDK 3.32.5 atau lebih baru- **Intl**: Internationalization
-
+- Flutter SDK 3.32.5 atau lebih baru
 - Dart SDK 3.8.1 atau lebih baru
+- Android Studio / VS Code
+- Google Gemini API Key ([Dapatkan di sini](https://makersuite.google.com/app/apikey))
 
-- Android Studio / VS Code### Persiapan untuk React Integration
+### Langkah Instalasi
 
-- Google Gemini API Key
+1. **Clone repository**
+```bash
+git clone <repository-url>
+cd mobile_jkn_anamnesa_ai
+```
+
+2. **Install dependencies**
+```bash
+flutter pub get
+```
+
+3. **Setup Environment Variables** ⭐ PENTING!
+
+Buat file `.env` di root project:
+```bash
+cp .env.example .env
+```
+
+Edit file `.env` dan masukkan API Key Anda:
+```env
+GEMINI_API_KEY=your_actual_api_key_here
+RAG_SERVER_URL=http://localhost:8001
+GEMINI_MODEL=gemini-2.0-flash-lite
+API_TIMEOUT=120
+RAG_TIMEOUT=120
+```
+
+📖 **Dokumentasi lengkap:** Lihat [ENV_SETUP.md](ENV_SETUP.md)
+
+4. **Verifikasi Setup**
+```bash
+flutter run
+```
+
+Pastikan di console muncul: `✅ Configuration loaded successfully`
+
+### Troubleshooting
+
+Jika mengalami error:
+- **SocketException / Failed host lookup**: Lihat [TROUBLESHOOTING_SOCKET_ERROR.md](TROUBLESHOOTING_SOCKET_ERROR.md)
+- **MissingPluginException di Web**: Lihat [WEB_PLATFORM_FIX.md](WEB_PLATFORM_FIX.md)
+
+### Persiapan untuk React Integration
 
 Aplikasi ini sudah dilengkapi dengan dependency untuk integrasi React:
-
-### Langkah Instalasi- `webview_flutter`: WebView dasar
+- `webview_flutter`: WebView dasar
 
 - `flutter_inappwebview`: WebView advanced dengan lebih banyak kontrol
 

@@ -5,8 +5,21 @@ import 'screens/soulmed_screen.dart';
 import 'screens/konsultasi_anamnesis_screen.dart';
 import 'screens/analisis_gambar_medis_screen.dart';
 import 'utils/app_theme.dart';
+import 'services/api_config.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize environment variables
+  await ApiConfig.initialize();
+
+  // Validate configuration
+  if (!ApiConfig.isConfigured) {
+    print('⚠️ WARNING: ${ApiConfig.configStatus}');
+  } else {
+    print('✅ ${ApiConfig.configStatus}');
+  }
+
   runApp(const MyApp());
 }
 

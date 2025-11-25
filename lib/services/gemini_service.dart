@@ -1,5 +1,6 @@
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'dart:convert';
+import 'dart:io';
 import 'api_config.dart';
 import 'anamnesis_questions_bank.dart';
 
@@ -7,8 +8,16 @@ class GeminiService {
   late final GenerativeModel _model;
 
   GeminiService() {
+    // Validate API Key
+    if (ApiConfig.geminiApiKey.isEmpty) {
+      throw Exception(
+        'Gemini API Key tidak ditemukan. '
+        'Pastikan file .env sudah dibuat dan berisi GEMINI_API_KEY yang valid.',
+      );
+    }
+
     _model = GenerativeModel(
-      model: 'gemini-2.0-flash-lite',
+      model: ApiConfig.geminiModel,
       apiKey: ApiConfig.geminiApiKey,
       generationConfig: GenerationConfig(
         temperature: 0.7,
@@ -17,6 +26,31 @@ class GeminiService {
         maxOutputTokens: 2048,
       ),
     );
+  }
+
+  // Helper method to handle network errors with better messages
+  String _getErrorMessage(dynamic error) {
+    if (error is SocketException) {
+      return 'Tidak dapat terhubung ke server Gemini AI.\n\n'
+          'Kemungkinan penyebab:\n'
+          '• Tidak ada koneksi internet\n'
+          '• DNS tidak dapat menyelesaikan hostname\n'
+          '• API Gemini sedang down\n'
+          '• Firewall memblokir koneksi\n\n'
+          'Silakan periksa koneksi internet Anda dan coba lagi.';
+    } else if (error.toString().contains('Failed host lookup')) {
+      return 'Gagal mencari server Gemini AI (DNS lookup failed).\n\n'
+          'Solusi:\n'
+          '• Pastikan perangkat terhubung ke internet\n'
+          '• Coba ganti DNS ke 8.8.8.8 (Google DNS)\n'
+          '• Restart aplikasi dan coba lagi';
+    } else if (error.toString().contains('API key')) {
+      return 'API Key tidak valid atau tidak ditemukan.\n\n'
+          'Solusi:\n'
+          '• Periksa file .env dan pastikan GEMINI_API_KEY sudah diisi\n'
+          '• Dapatkan API key baru di: https://makersuite.google.com/app/apikey';
+    }
+    return 'Terjadi kesalahan: ${error.toString()}';
   }
 
   // ==========================================
@@ -161,7 +195,12 @@ Berikan HANYA JSON, tanpa penjelasan tambahan.
         'totalQuestions': questionCount,
       };
     } catch (e) {
-      print('Error generating questions from bank: $e');
+      print('❌ Error generating questions from bank: ${_getErrorMessage(e)}');
+
+      // Rethrow with user-friendly message for critical errors
+      if (e is SocketException || e.toString().contains('Failed host lookup')) {
+        throw Exception(_getErrorMessage(e));
+      }
 
       // Fallback: use prioritized questions directly
       final questionCount = AnamnesisQuestionsBank.calculateQuestionCount(
