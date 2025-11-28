@@ -186,13 +186,14 @@ class _AnalisisGambarMedisScreenState extends State<AnalisisGambarMedisScreen>
       await _updateProgress(0.2, 'Membaca gambar...');
       final Uint8List imageBytes = await _selectedImage!.readAsBytes();
 
-      await _updateProgress(0.4, 'Mengirim ke AI...');
+      await _updateProgress(0.4, 'Memvalidasi dengan RAG...');
 
       // Convert bytes to base64
       final base64Image = base64Encode(imageBytes);
 
-      await _updateProgress(0.6, 'Menganalisis gambar medis...');
-      final result = await _geminiService.analyzeImage(
+      await _updateProgress(0.6, 'Menganalisis dengan AI + RAG...');
+      // Use RAG + Gemini flow for image analysis
+      final result = await _geminiService.analyzeImageWithRag(
         base64Image: base64Image,
         description: _descriptionController.text.isEmpty
             ? null

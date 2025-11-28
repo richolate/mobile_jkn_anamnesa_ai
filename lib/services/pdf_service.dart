@@ -254,25 +254,86 @@ class PdfService {
             pw.SizedBox(height: 12),
           ],
 
-          if (diagnosis['differentialDiagnoses'] != null) ...[
+          if (diagnosis['differentialDiagnoses'] != null &&
+              (diagnosis['differentialDiagnoses'] as List).isNotEmpty) ...[
             pw.Text(
               'Diagnosis Diferensial:',
               style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold),
             ),
             pw.SizedBox(height: 8),
-            ...(diagnosis['differentialDiagnoses'] as List).asMap().entries.map(
-              (entry) {
-                final index = entry.key + 1;
-                final diff = entry.value;
-                return pw.Padding(
-                  padding: const pw.EdgeInsets.only(left: 16, bottom: 6),
-                  child: pw.Text(
-                    '$index. ${diff['name'] ?? diff['diagnosis'] ?? 'N/A'}',
-                    style: const pw.TextStyle(fontSize: 11),
+            ...(diagnosis['differentialDiagnoses'] as List).asMap().entries.map((
+              entry,
+            ) {
+              final index = entry.key + 1;
+              final diff = entry.value as Map<String, dynamic>;
+              return pw.Container(
+                margin: const pw.EdgeInsets.only(left: 8, bottom: 8),
+                padding: const pw.EdgeInsets.all(8),
+                decoration: pw.BoxDecoration(
+                  color: PdfColors.grey50,
+                  border: pw.Border.all(color: PdfColors.grey200),
+                  borderRadius: const pw.BorderRadius.all(
+                    pw.Radius.circular(6),
                   ),
-                );
-              },
-            ),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Row(
+                      children: [
+                        pw.Text(
+                          '$index. ${diff['name'] ?? diff['diagnosis'] ?? 'N/A'}',
+                          style: pw.TextStyle(
+                            fontSize: 11,
+                            fontWeight: pw.FontWeight.bold,
+                          ),
+                        ),
+                        pw.Spacer(),
+                        if (diff['probability'] != null)
+                          pw.Container(
+                            padding: const pw.EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: pw.BoxDecoration(
+                              color: PdfColors.orange100,
+                              borderRadius: const pw.BorderRadius.all(
+                                pw.Radius.circular(4),
+                              ),
+                            ),
+                            child: pw.Text(
+                              '${diff['probability']}%',
+                              style: const pw.TextStyle(fontSize: 8),
+                            ),
+                          ),
+                      ],
+                    ),
+                    if (diff['icd10Code'] != null &&
+                        diff['icd10Code'].toString().isNotEmpty) ...[
+                      pw.SizedBox(height: 2),
+                      pw.Text(
+                        'ICD-10: ${diff['icd10Code']}',
+                        style: const pw.TextStyle(
+                          fontSize: 8,
+                          color: PdfColors.grey600,
+                        ),
+                      ),
+                    ],
+                    if (diff['reasoning'] != null &&
+                        diff['reasoning'].toString().isNotEmpty) ...[
+                      pw.SizedBox(height: 4),
+                      pw.Text(
+                        diff['reasoning'].toString(),
+                        style: const pw.TextStyle(
+                          fontSize: 9,
+                          color: PdfColors.grey700,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              );
+            }),
             pw.SizedBox(height: 12),
           ],
 
@@ -289,7 +350,107 @@ class PdfService {
             _buildRecommendations(diagnosis['recommendations']),
           ],
 
-          pw.SizedBox(height: 24),
+          pw.SizedBox(height: 16),
+
+          // Red Flags
+          if (diagnosis['redFlags'] != null &&
+              (diagnosis['redFlags'] as List).isNotEmpty) ...[
+            pw.Container(
+              padding: const pw.EdgeInsets.all(12),
+              decoration: pw.BoxDecoration(
+                color: PdfColors.red50,
+                border: pw.Border.all(color: PdfColors.red300),
+                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+              ),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(
+                    'TANDA BAHAYA (Red Flags)',
+                    style: pw.TextStyle(
+                      fontSize: 12,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.red900,
+                    ),
+                  ),
+                  pw.SizedBox(height: 6),
+                  ...(diagnosis['redFlags'] as List).map(
+                    (flag) => pw.Padding(
+                      padding: const pw.EdgeInsets.only(left: 8, bottom: 3),
+                      child: pw.Row(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text(
+                            '! ',
+                            style: pw.TextStyle(
+                              fontSize: 10,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColors.red700,
+                            ),
+                          ),
+                          pw.Expanded(
+                            child: pw.Text(
+                              flag.toString(),
+                              style: const pw.TextStyle(fontSize: 10),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            pw.SizedBox(height: 16),
+          ],
+
+          // Patient Education
+          if (diagnosis['patientEducation'] != null &&
+              (diagnosis['patientEducation'] as List).isNotEmpty) ...[
+            pw.Container(
+              padding: const pw.EdgeInsets.all(12),
+              decoration: pw.BoxDecoration(
+                color: PdfColors.blue50,
+                border: pw.Border.all(color: PdfColors.blue200),
+                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+              ),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(
+                    'EDUKASI PASIEN',
+                    style: pw.TextStyle(
+                      fontSize: 12,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.blue900,
+                    ),
+                  ),
+                  pw.SizedBox(height: 6),
+                  ...(diagnosis['patientEducation'] as List).map(
+                    (edu) => pw.Padding(
+                      padding: const pw.EdgeInsets.only(left: 8, bottom: 3),
+                      child: pw.Row(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text(
+                            '- ',
+                            style: const pw.TextStyle(fontSize: 10),
+                          ),
+                          pw.Expanded(
+                            child: pw.Text(
+                              edu.toString(),
+                              style: const pw.TextStyle(fontSize: 10),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            pw.SizedBox(height: 16),
+          ],
 
           // Disclaimer
           pw.Container(
@@ -1152,12 +1313,14 @@ class PdfService {
           pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
-              pw.Text(
-                title,
-                style: pw.TextStyle(
-                  fontSize: 12,
-                  fontWeight: pw.FontWeight.bold,
-                  color: PdfColors.red900,
+              pw.Expanded(
+                child: pw.Text(
+                  title,
+                  style: pw.TextStyle(
+                    fontSize: 12,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.red900,
+                  ),
                 ),
               ),
               if (diagnosis['confidence'] != null)
@@ -1189,11 +1352,68 @@ class PdfService {
                 'N/A',
             style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold),
           ),
-          if (diagnosis['reasoning'] != null) ...[
+          // ICD-10 Code
+          if (diagnosis['icd10Code'] != null &&
+              diagnosis['icd10Code'].toString().isNotEmpty) ...[
+            pw.SizedBox(height: 4),
+            pw.Container(
+              padding: const pw.EdgeInsets.symmetric(
+                horizontal: 6,
+                vertical: 2,
+              ),
+              decoration: pw.BoxDecoration(
+                color: PdfColors.grey200,
+                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+              ),
+              child: pw.Text(
+                'ICD-10: ${diagnosis['icd10Code']}',
+                style: pw.TextStyle(
+                  fontSize: 9,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+          // Description
+          if (diagnosis['description'] != null &&
+              diagnosis['description'].toString().isNotEmpty) ...[
             pw.SizedBox(height: 6),
             pw.Text(
-              diagnosis['reasoning'].toString(),
-              style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey800),
+              diagnosis['description'].toString(),
+              style: const pw.TextStyle(fontSize: 10),
+            ),
+          ],
+          // Reasoning
+          if (diagnosis['reasoning'] != null &&
+              diagnosis['reasoning'].toString().isNotEmpty) ...[
+            pw.SizedBox(height: 6),
+            pw.Container(
+              padding: const pw.EdgeInsets.all(8),
+              decoration: pw.BoxDecoration(
+                color: PdfColors.grey100,
+                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+              ),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(
+                    'Alasan Medis:',
+                    style: pw.TextStyle(
+                      fontSize: 9,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.grey700,
+                    ),
+                  ),
+                  pw.SizedBox(height: 2),
+                  pw.Text(
+                    diagnosis['reasoning'].toString(),
+                    style: const pw.TextStyle(
+                      fontSize: 9,
+                      color: PdfColors.grey800,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ],
@@ -1243,32 +1463,34 @@ class PdfService {
             ..._buildListItems(recommendations['followUp']),
             pw.SizedBox(height: 8),
           ],
-          if (recommendations['specialistReferral'] != null) ...[
-            pw.Container(
-              padding: const pw.EdgeInsets.all(8),
-              decoration: pw.BoxDecoration(
-                color: PdfColors.purple50,
-                border: pw.Border.all(color: PdfColors.purple200),
-                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
-              ),
-              child: pw.Row(
-                children: [
-                  pw.Text(
-                    'Rujukan Spesialis: ',
-                    style: pw.TextStyle(
-                      fontSize: 10,
-                      fontWeight: pw.FontWeight.bold,
-                    ),
-                  ),
-                  pw.Expanded(
-                    child: pw.Text(
-                      recommendations['specialistReferral'].toString(),
-                      style: const pw.TextStyle(fontSize: 10),
-                    ),
-                  ),
-                ],
+          if (recommendations['lifestyle'] != null) ...[
+            pw.Text(
+              'Perubahan Gaya Hidup:',
+              style: pw.TextStyle(
+                fontSize: 11,
+                fontWeight: pw.FontWeight.bold,
+                color: PdfColors.teal800,
               ),
             ),
+            pw.SizedBox(height: 4),
+            ..._buildListItems(recommendations['lifestyle']),
+            pw.SizedBox(height: 8),
+          ],
+          if (recommendations['medications'] != null) ...[
+            pw.Text(
+              'Rekomendasi Obat:',
+              style: pw.TextStyle(
+                fontSize: 11,
+                fontWeight: pw.FontWeight.bold,
+                color: PdfColors.blue800,
+              ),
+            ),
+            pw.SizedBox(height: 4),
+            ..._buildListItems(recommendations['medications']),
+            pw.SizedBox(height: 8),
+          ],
+          if (recommendations['specialistReferral'] != null) ...[
+            _buildSpecialistReferral(recommendations['specialistReferral']),
           ],
         ],
       );
@@ -1297,6 +1519,72 @@ class PdfService {
       );
     }
     return pw.SizedBox.shrink();
+  }
+
+  // Helper to build specialist referral section
+  static pw.Widget _buildSpecialistReferral(dynamic referral) {
+    if (referral is Map<String, dynamic>) {
+      return pw.Container(
+        padding: const pw.EdgeInsets.all(8),
+        decoration: pw.BoxDecoration(
+          color: PdfColors.purple50,
+          border: pw.Border.all(color: PdfColors.purple200),
+          borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+        ),
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Text(
+              'Rujukan Spesialis',
+              style: pw.TextStyle(
+                fontSize: 11,
+                fontWeight: pw.FontWeight.bold,
+                color: PdfColors.purple900,
+              ),
+            ),
+            pw.SizedBox(height: 4),
+            if (referral['type'] != null)
+              pw.Text(
+                'Jenis: ${referral['type']}',
+                style: const pw.TextStyle(fontSize: 10),
+              ),
+            if (referral['urgency'] != null)
+              pw.Text(
+                'Urgensi: ${referral['urgency']}',
+                style: const pw.TextStyle(fontSize: 10),
+              ),
+            if (referral['reason'] != null)
+              pw.Text(
+                'Alasan: ${referral['reason']}',
+                style: const pw.TextStyle(fontSize: 10),
+              ),
+          ],
+        ),
+      );
+    } else {
+      return pw.Container(
+        padding: const pw.EdgeInsets.all(8),
+        decoration: pw.BoxDecoration(
+          color: PdfColors.purple50,
+          border: pw.Border.all(color: PdfColors.purple200),
+          borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+        ),
+        child: pw.Row(
+          children: [
+            pw.Text(
+              'Rujukan Spesialis: ',
+              style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
+            ),
+            pw.Expanded(
+              child: pw.Text(
+                referral.toString(),
+                style: const pw.TextStyle(fontSize: 10),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   // Helper to build list items

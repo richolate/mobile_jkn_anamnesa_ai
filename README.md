@@ -59,11 +59,20 @@ flutter run
 |---------|------------|
 | Framework | Flutter 3.32.5 |
 | Language | Dart 3.8.1 |
-| AI Engine | Google Gemini (Text & Vision) |
-| Database | SQLite (mobile) + SharedPreferences |
+| AI Engine | Google Gemini (Text & Vision) + RAG Validation |
+| RAG Server | Custom Medical Knowledge Base |
+| Database | SQLite (mobile) + SharedPreferences (web) |
 | PDF Engine | `pdf` package |
 | Image Processing | `image_picker` |
 | Environment Config | flutter_dotenv |
+
+### AI Architecture
+```
+User Input → RAG Server (Validation) → Gemini AI (Elaboration) → Final Output
+```
+- **RAG Server**: Validates medical information from knowledge base
+- **Gemini AI**: Elaborates and explains validated information
+- **Fallback**: If RAG unavailable, uses Gemini directly
 
 ### Core Dependencies
 ```yaml
@@ -135,12 +144,20 @@ flutter build web --release \
 ### Environment Variables (`.env`)
 ```env
 GEMINI_API_KEY=your_api_key_here
-RAG_SERVER_URL=http://localhost:8001
+RAG_SERVER_URL=your_rag_server_url_here
 GEMINI_MODEL=gemini-2.0-flash-lite
 API_TIMEOUT=120
 RAG_TIMEOUT=120
 ```
 ⚠️ File `.env` untuk **local development only** - tidak di-commit ke Git
+
+### Vercel Environment Variables
+Set these in Vercel Dashboard → Project → Settings → Environment Variables:
+- `GEMINI_API_KEY` (required) ← Your Gemini API key
+- `RAG_SERVER_URL` (required) ← Your RAG server URL
+- `GEMINI_MODEL` (optional) ← Default: `gemini-2.0-flash-lite`
+- `API_TIMEOUT` (optional) ← Default: `120`
+- `RAG_TIMEOUT` (optional) ← Default: `120`
 
 ### Android Network Permissions
 ```xml

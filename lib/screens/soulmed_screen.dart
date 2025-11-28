@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:flutter_markdown/flutter_markdown.dart';
 import '../services/database_service.dart';
 import '../services/gemini_service.dart';
-import '../services/api_config.dart';
 
 class SoulMedScreen extends StatefulWidget {
   const SoulMedScreen({Key? key}) : super(key: key);
@@ -62,11 +60,20 @@ class _SoulMedScreenState extends State<SoulMedScreen> {
       _error = null;
       _response = null;
       _sources = [];
-      _loadingMessage = 'Menganalisis informasi medis...';
+      _loadingMessage = 'Memvalidasi informasi medis...';
     });
 
-    // Update loading message after 10 seconds
-    Future.delayed(const Duration(seconds: 10), () {
+    // Update loading message after 5 seconds
+    Future.delayed(const Duration(seconds: 5), () {
+      if (_isLoading) {
+        setState(() {
+          _loadingMessage = 'Menganalisis dengan RAG + Gemini AI...';
+        });
+      }
+    });
+
+    // Update loading message after 15 seconds
+    Future.delayed(const Duration(seconds: 15), () {
       if (_isLoading) {
         setState(() {
           _loadingMessage =
@@ -76,21 +83,15 @@ class _SoulMedScreenState extends State<SoulMedScreen> {
     });
 
     try {
-      // Try persistent RAG server first
-      final response = await _tryPersistentServer(_queryController.text);
+      // Use new RAG + Gemini flow
+      final response = await _geminiService.processSoulMedWithRag(
+        _queryController.text,
+      );
 
-      if (response != null) {
-        await _handleSuccessResponse(response, usedFallback: false);
-      } else {
-        // Fallback to Gemini if RAG server unavailable
-        setState(() {
-          _loadingMessage =
-              'Server RAG tidak tersedia, menggunakan Gemini AI...';
-        });
-
-        final geminiResponse = await _queryWithGemini(_queryController.text);
-        await _handleSuccessResponse(geminiResponse, usedFallback: true);
-      }
+      await _handleSuccessResponse({
+        'response': response,
+        'sources': [],
+      }, usedFallback: false);
     } catch (e) {
       setState(() {
         _error = 'Terjadi kesalahan: ${e.toString()}';
@@ -98,72 +99,8 @@ class _SoulMedScreenState extends State<SoulMedScreen> {
     } finally {
       setState(() {
         _isLoading = false;
-        _loadingMessage = 'Menganalisis informasi medis...';
+        _loadingMessage = 'Memvalidasi informasi medis...';
       });
-    }
-  }
-
-  Future<Map<String, dynamic>?> _tryPersistentServer(String query) async {
-    try {
-      // Use configured RAG server URL (can be localhost or cloud)
-      final ragUrl = ApiConfig.ragServerUrl;
-
-      final response = await http
-          .post(
-            Uri.parse('$ragUrl/query'),
-            headers: {'Content-Type': 'application/json'},
-            body: json.encode({
-              'query': query,
-              'max_docs': 5,
-              'context': 'anamnesis',
-            }),
-          )
-          .timeout(const Duration(seconds: 10));
-
-      if (response.statusCode == 200) {
-        return json.decode(response.body);
-      }
-    } catch (e) {
-      print('RAG server error: $e');
-    }
-    return null;
-  }
-
-  Future<Map<String, dynamic>> _queryWithGemini(String query) async {
-    try {
-      final medicalContext =
-          '''
-Anda adalah asisten medis AI yang memberikan informasi kesehatan umum.
-Jawab pertanyaan berikut dengan akurat dan profesional.
-Berikan informasi yang lengkap dan mudah dipahami.
-Selalu ingatkan bahwa jawaban ini bukan pengganti konsultasi dokter profesional.
-
-Pertanyaan: $query
-
-Jawab dengan format:
-- Penjelasan singkat
-- Informasi detail
-- Disclaimer medis
-''';
-
-      final result = await _geminiService.generateSimpleResponse(
-        medicalContext,
-      );
-
-      return {
-        'answer': result,
-        'sources': [
-          {
-            'title': 'Gemini AI (Fallback)',
-            'similarity': 1.0,
-            'content':
-                'Informasi dari Gemini AI karena server RAG tidak tersedia',
-          },
-        ],
-        'fallback': true,
-      };
-    } catch (e) {
-      throw Exception('Gemini fallback failed: $e');
     }
   }
 

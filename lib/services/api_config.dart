@@ -25,11 +25,7 @@ class ApiConfig {
   }
 
   // RAG Server Endpoint - Loaded from .env file or dart-define
-  // Options:
-  // 1. Local development: 'http://localhost:8001'
-  // 2. Cloud Run: 'https://rag-medical-api-xxxxx.run.app'
-  // 3. Railway: 'https://rag-medical-api.railway.app'
-  // 4. Vercel: 'https://your-rag-api.vercel.app'
+  // Set RAG_SERVER_URL in your .env file or Vercel environment variables
   //
   // FALLBACK: If RAG server unavailable, app will use Gemini AI automatically
   static String get ragServerUrl {
@@ -39,7 +35,7 @@ class ApiConfig {
     );
     if (compileTime.isNotEmpty) return compileTime;
 
-    return dotenv.env['RAG_SERVER_URL'] ?? 'http://localhost:8001';
+    return dotenv.env['RAG_SERVER_URL'] ?? '';
   }
 
   // Model Configuration

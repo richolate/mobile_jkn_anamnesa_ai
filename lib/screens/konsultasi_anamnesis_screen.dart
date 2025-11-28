@@ -308,11 +308,12 @@ class _KonsultasiAnamnesisScreenState extends State<KonsultasiAnamnesisScreen> {
   Future<void> _generateFinalDiagnosis() async {
     setState(() {
       _isLoading = true;
-      _loadingMessage = 'Menganalisis hasil konsultasi...';
+      _loadingMessage = 'Memvalidasi dengan RAG + menganalisis diagnosis...';
     });
 
     try {
-      final result = await _geminiService.generateFinalDiagnosis(
+      // Use RAG + Gemini flow for diagnosis
+      final result = await _geminiService.generateFinalDiagnosisWithRag(
         originalComplaint: _complaintController.text,
         symptomStartDate: _symptomStartDate?.toIso8601String(),
         answersGiven: _answersGiven,

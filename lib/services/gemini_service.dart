@@ -2,6 +2,7 @@ import 'package:google_generative_ai/google_generative_ai.dart';
 import 'dart:convert';
 import 'api_config.dart';
 import 'anamnesis_questions_bank.dart';
+import 'rag_service.dart';
 
 class GeminiService {
   late final GenerativeModel _model;
@@ -31,8 +32,8 @@ class GeminiService {
   String _getErrorMessage(dynamic error) {
     // Check for network errors (works on both mobile and web)
     final errorString = error.toString();
-    
-    if (errorString.contains('SocketException') || 
+
+    if (errorString.contains('SocketException') ||
         errorString.contains('Failed host lookup') ||
         errorString.contains('NetworkException') ||
         errorString.contains('XMLHttpRequest error')) {
@@ -205,7 +206,7 @@ Berikan HANYA JSON, tanpa penjelasan tambahan.
 
       // Rethrow with user-friendly message for critical network errors
       final errorString = e.toString();
-      if (errorString.contains('SocketException') || 
+      if (errorString.contains('SocketException') ||
           errorString.contains('Failed host lookup') ||
           errorString.contains('NetworkException') ||
           errorString.contains('XMLHttpRequest error')) {
@@ -601,5 +602,424 @@ Berikan HANYA JSON.
       'Desember',
     ];
     return '${date.day} ${months[date.month - 1]} ${date.year}';
+  }
+
+  // ==========================================
+  // RAG + GEMINI INTEGRATION METHODS
+  // ==========================================
+
+  final RagService _ragService = RagService();
+
+  /// SoulMed Chat: RAG validates → Gemini elaborates
+  /// Flow: User query → RAG validation → Gemini elaboration → Final response
+  Future<String> processSoulMedWithRag(String userQuery) async {
+    try {
+      print('🔄 SoulMed: Starting RAG + Gemini flow');
+
+      // Step 1: Query RAG for medical knowledge validation
+      final ragResponse = await _ragService.queryMedicalKnowledge(userQuery);
+
+      String elaborationPrompt;
+
+      if (ragResponse.success && ragResponse.hasContent) {
+        print('✅ RAG validation successful');
+
+        // Step 2: Use Gemini to elaborate on RAG's validated response
+        elaborationPrompt =
+            '''
+Anda adalah asisten kesehatan AI bernama SoulMed yang ramah dan profesional.
+
+PERTANYAAN PENGGUNA:
+"$userQuery"
+
+VALIDASI DARI DATABASE MEDIS (RAG):
+${ragResponse.response}
+
+TUGAS ANDA:
+Berdasarkan informasi yang tervalidasi di atas, berikan penjelasan yang:
+1. Mudah dipahami oleh pasien awam
+2. Lengkap namun tidak terlalu teknis
+3. Menyertakan saran praktis yang bisa dilakukan
+4. Mengingatkan pentingnya konsultasi dokter jika perlu
+
+FORMAT RESPONS:
+- Gunakan bahasa Indonesia yang baik dan sopan
+- Gunakan emoji yang relevan untuk membuat respons lebih ramah
+- Struktur informasi dengan jelas (bisa pakai bullet points)
+- Akhiri dengan disclaimer bahwa ini bukan pengganti konsultasi dokter
+
+Berikan respons dalam format teks biasa (bukan JSON).
+''';
+      } else {
+        print('⚠️ RAG unavailable, using Gemini directly');
+
+        // Fallback: Use Gemini directly without RAG context
+        elaborationPrompt =
+            '''
+Anda adalah asisten kesehatan AI bernama SoulMed yang ramah dan profesional.
+
+PERTANYAAN PENGGUNA:
+"$userQuery"
+
+TUGAS ANDA:
+Berikan informasi kesehatan yang:
+1. Akurat dan berdasarkan pengetahuan medis umum
+2. Mudah dipahami oleh pasien awam
+3. Menyertakan saran praktis
+4. Mengingatkan pentingnya konsultasi dokter
+
+FORMAT RESPONS:
+- Gunakan bahasa Indonesia yang baik dan sopan
+- Gunakan emoji yang relevan
+- Struktur informasi dengan jelas
+- Akhiri dengan disclaimer
+
+Berikan respons dalam format teks biasa (bukan JSON).
+''';
+      }
+
+      // Step 3: Generate elaborated response with Gemini
+      final response = await _model.generateContent([
+        Content.text(elaborationPrompt),
+      ]);
+      final result = response.text ?? 'Maaf, tidak dapat menghasilkan respons.';
+
+      print('✅ SoulMed response generated');
+      return result;
+    } catch (e) {
+      print('❌ SoulMed RAG+Gemini error: $e');
+
+      // Fallback to simple Gemini response
+      return generateSimpleResponse('''
+Jawab pertanyaan kesehatan berikut dengan ramah dan profesional dalam bahasa Indonesia:
+"$userQuery"
+
+Sertakan emoji dan akhiri dengan disclaimer bahwa ini bukan pengganti konsultasi dokter.
+''');
+    }
+  }
+
+  /// Anamnesis Final Diagnosis: RAG validates → Gemini elaborates
+  Future<Map<String, dynamic>> generateFinalDiagnosisWithRag({
+    required String originalComplaint,
+    required String? symptomStartDate,
+    required List<Map<String, dynamic>> answersGiven,
+    required List<Map<String, dynamic>> potentialDiagnoses,
+  }) async {
+    try {
+      print('🔄 Anamnesis: Starting RAG + Gemini diagnosis flow');
+
+      // Build comprehensive query for RAG
+      final buffer = StringBuffer();
+      buffer.writeln('Keluhan Utama: $originalComplaint');
+
+      if (symptomStartDate != null && symptomStartDate.isNotEmpty) {
+        try {
+          final startDate = DateTime.parse(symptomStartDate);
+          final daysSince = DateTime.now().difference(startDate).inDays;
+          buffer.writeln('Durasi gejala: $daysSince hari');
+        } catch (_) {}
+      }
+
+      buffer.writeln('\nHasil Anamnesis:');
+      for (var qa in answersGiven) {
+        buffer.writeln('- ${qa['question']}: ${qa['answer']}');
+      }
+
+      buffer.writeln('\nApa diagnosis dan rekomendasi medis untuk pasien ini?');
+
+      // Step 1: Query RAG for validation
+      final ragResponse = await _ragService.queryMedicalKnowledge(
+        buffer.toString(),
+      );
+
+      String ragContext = '';
+      if (ragResponse.success && ragResponse.hasContent) {
+        print('✅ RAG validation for anamnesis successful');
+        ragContext =
+            '''
+
+VALIDASI DARI DATABASE MEDIS (RAG):
+${ragResponse.response}
+
+Gunakan informasi RAG di atas sebagai referensi utama untuk diagnosis.
+''';
+      } else {
+        print('⚠️ RAG unavailable for anamnesis, using Gemini knowledge');
+      }
+
+      // Step 2: Generate diagnosis with Gemini (using RAG context if available)
+      String durationInfo = '';
+      if (symptomStartDate != null && symptomStartDate.isNotEmpty) {
+        try {
+          final startDate = DateTime.parse(symptomStartDate);
+          final daysSince = DateTime.now().difference(startDate).inDays;
+          durationInfo =
+              '\nDurasi gejala: $daysSince hari (mulai ${_formatDate(startDate)})';
+        } catch (e) {
+          durationInfo = '';
+        }
+      }
+
+      final prompt =
+          '''
+Anda adalah dokter AI profesional yang melakukan analisis diagnosis berdasarkan anamnesis lengkap.
+
+KELUHAN AWAL:
+"$originalComplaint"$durationInfo
+
+KEMUNGKINAN DIAGNOSIS AWAL:
+${potentialDiagnoses.map((d) => '- ${d['name']} (${d['probability']}): ${d['reasoning']}').join('\n')}
+
+HASIL ANAMNESIS LENGKAP:
+${answersGiven.asMap().entries.map((entry) {
+            final index = entry.key + 1;
+            final qa = entry.value;
+            return 'Q$index: ${qa['question']}\nA$index: ${qa['answer']}';
+          }).join('\n\n')}
+$ragContext
+
+TUGAS ANDA:
+Berikan diagnosis final yang komprehensif dan profesional berdasarkan semua informasi di atas.
+
+Output HARUS dalam format JSON berikut:
+{
+  "primaryDiagnosis": {
+    "name": "<nama diagnosis utama>",
+    "icd10Code": "<kode ICD-10 jika ada>",
+    "confidence": <0-100>,
+    "description": "<penjelasan lengkap kondisi>",
+    "reasoning": "<analisis medis yang mendukung diagnosis ini>"
+  },
+  "differentialDiagnoses": [
+    {
+      "name": "<diagnosis alternatif>",
+      "icd10Code": "<kode ICD-10>",
+      "probability": <0-100>,
+      "reasoning": "<mengapa ini mungkin>"
+    }
+  ],
+  "recommendations": {
+    "immediate": [
+      "<tindakan segera yang harus dilakukan>"
+    ],
+    "followUp": [
+      "<tindakan lanjutan>"
+    ],
+    "lifestyle": [
+      "<perubahan gaya hidup>"
+    ],
+    "medications": [
+      "<rekomendasi obat (umum)>"
+    ],
+    "specialistReferral": {
+      "needed": true/false,
+      "type": "<jenis spesialis jika diperlukan>",
+      "urgency": "<segera/rutin/opsional>",
+      "reason": "<alasan rujukan>"
+    }
+  },
+  "redFlags": [
+    "<tanda bahaya yang perlu diwaspadai>"
+  ],
+  "patientEducation": [
+    "<edukasi untuk pasien>"
+  ],
+  "estimatedRecoveryDays": <perkiraan hari pemulihan>,
+  "disclaimer": "Ini adalah analisis AI dan bukan pengganti konsultasi langsung dengan dokter profesional."
+}
+
+PENTING:
+- Berikan analisis medis yang akurat dan profesional
+- Gunakan istilah medis yang jelas
+- Sertakan kode ICD-10 yang sesuai
+- Rekomendasi harus praktis dan aman
+- Jika kondisi serius, tekankan pentingnya konsultasi dokter
+
+Berikan HANYA JSON, tanpa penjelasan tambahan.
+''';
+
+      final response = await _model.generateContent([Content.text(prompt)]);
+      final responseText = response.text ?? '';
+
+      // Parse JSON
+      final jsonText = responseText
+          .replaceAll(RegExp(r'```json\n?|\n?```'), '')
+          .trim();
+      final jsonData = json.decode(jsonText);
+
+      print('✅ Anamnesis diagnosis generated with RAG context');
+      return {'success': true, 'diagnosis': jsonData};
+    } catch (e) {
+      print('❌ Anamnesis RAG+Gemini error: $e');
+      // Fallback to original method without RAG
+      return generateFinalDiagnosis(
+        originalComplaint: originalComplaint,
+        symptomStartDate: symptomStartDate,
+        answersGiven: answersGiven,
+        potentialDiagnoses: potentialDiagnoses,
+      );
+    }
+  }
+
+  /// Image Analysis: RAG validates → Gemini elaborates
+  Future<Map<String, dynamic>> analyzeImageWithRag({
+    required String base64Image,
+    String? description,
+  }) async {
+    try {
+      print('🔄 Image Analysis: Starting RAG + Gemini flow');
+
+      // Step 1: First do basic image analysis with Gemini Vision
+      final visionModel = GenerativeModel(
+        model: 'gemini-2.0-flash-lite',
+        apiKey: ApiConfig.geminiApiKey,
+      );
+
+      // Initial analysis prompt to get basic findings
+      final initialPrompt =
+          '''
+Analisis gambar medis ini dan berikan deskripsi singkat tentang:
+1. Jenis gambar medis (X-ray, CT, MRI, foto klinis, dll)
+2. Area anatomi yang terlihat
+3. Temuan visual utama (normal dan abnormal)
+
+${description != null && description.isNotEmpty ? 'Deskripsi dari pengguna: "$description"\n' : ''}
+
+Berikan dalam format teks singkat untuk validasi.
+''';
+
+      final imagePart = DataPart('image/jpeg', base64Decode(base64Image));
+      final initialResponse = await visionModel.generateContent([
+        Content.multi([TextPart(initialPrompt), imagePart]),
+      ]);
+
+      final initialFindings = initialResponse.text ?? '';
+      print('✅ Initial image analysis complete');
+
+      // Step 2: Query RAG for medical validation based on initial findings
+      String ragContext = '';
+      final ragQuery =
+          'Analisis gambar medis: $initialFindings ${description ?? ''}';
+      final ragResponse = await _ragService.queryMedicalKnowledge(ragQuery);
+
+      if (ragResponse.success && ragResponse.hasContent) {
+        print('✅ RAG validation for image analysis successful');
+        ragContext =
+            '''
+
+VALIDASI DARI DATABASE MEDIS (RAG):
+${ragResponse.response}
+
+Gunakan informasi RAG di atas sebagai referensi untuk interpretasi dan diagnosis.
+''';
+      } else {
+        print('⚠️ RAG unavailable for image analysis');
+      }
+
+      // Step 3: Final comprehensive analysis with RAG context
+      final finalPrompt =
+          '''
+Anda adalah AI medis spesialis analisis gambar medis. Analisis gambar berikut dengan detail.
+
+${description != null && description.isNotEmpty ? 'Deskripsi dari pengguna: "$description"\n' : ''}
+
+TEMUAN AWAL:
+$initialFindings
+$ragContext
+
+TUGAS ANALISIS FINAL:
+1. Identifikasi jenis gambar medis (X-ray, CT, MRI, foto klinis, dll)
+2. Analisis temuan visual yang terlihat
+3. Berikan interpretasi medis profesional berdasarkan RAG validation
+4. Sarankan diagnosis potensial
+5. Rekomendasikan tindakan lanjutan
+
+Output JSON format:
+{
+  "imageType": "<jenis gambar medis>",
+  "anatomicalArea": "<area anatomi yang difoto>",
+  "findings": {
+    "normal": ["<temuan normal>"],
+    "abnormal": ["<temuan abnormal jika ada>"]
+  },
+  "diagnosis": {
+    "primary": "<diagnosis utama>",
+    "confidence": <0-100>,
+    "reasoning": "<penjelasan analisis berdasarkan temuan dan validasi RAG>"
+  },
+  "differentialDiagnoses": [
+    {
+      "name": "<diagnosis alternatif>",
+      "probability": <0-100>,
+      "reasoning": "<mengapa mungkin>"
+    }
+  ],
+  "recommendations": {
+    "immediate": ["<tindakan segera>"],
+    "followUp": ["<pemeriksaan lanjutan>"],
+    "specialist": "<spesialis yang dirujuk>"
+  },
+  "redFlags": ["<tanda bahaya>"],
+  "patientEducation": ["<edukasi pasien>"],
+  "disclaimer": "Analisis AI ini bukan pengganti evaluasi profesional medis."
+}
+
+Berikan HANYA JSON.
+''';
+
+      final finalResponse = await visionModel.generateContent([
+        Content.multi([TextPart(finalPrompt), imagePart]),
+      ]);
+
+      final responseText = finalResponse.text ?? '';
+      final jsonText = responseText
+          .replaceAll(RegExp(r'```json\n?|\n?```'), '')
+          .trim();
+      final jsonData = json.decode(jsonText);
+
+      print('✅ Image analysis with RAG context complete');
+
+      // Transform to match expected structure
+      return {
+        'imageType': jsonData['imageType'] ?? 'Gambar Medis',
+        'anatomicalArea': jsonData['anatomicalArea'],
+        'findings': jsonData['findings'],
+        'primaryDiagnosis': {
+          'diagnosis':
+              jsonData['diagnosis']?['primary'] ?? 'Tidak dapat ditentukan',
+          'confidence': (jsonData['diagnosis']?['confidence'] ?? 0)
+              .toString()
+              .toUpperCase(),
+          'reasoning': jsonData['diagnosis']?['reasoning'] ?? '',
+        },
+        'differentialDiagnoses':
+            (jsonData['differentialDiagnoses'] as List?)
+                ?.map(
+                  (d) => {
+                    'name': d['name'],
+                    'probability': d['probability'],
+                    'reasoning': d['reasoning'],
+                  },
+                )
+                .toList() ??
+            [],
+        'recommendations': {
+          'immediate': jsonData['recommendations']?['immediate'] ?? [],
+          'followUp': jsonData['recommendations']?['followUp'] ?? [],
+          'specialistReferral':
+              jsonData['recommendations']?['specialist'] ?? 'Dokter Umum',
+        },
+        'redFlags': jsonData['redFlags'] ?? [],
+        'patientEducation': jsonData['patientEducation'] ?? [],
+        'disclaimer':
+            jsonData['disclaimer'] ??
+            '⚠️ Hasil ini bukan diagnosis final. Segera konsultasikan dengan dokter untuk pemeriksaan lebih lanjut.',
+      };
+    } catch (e) {
+      print('❌ Image RAG+Gemini error: $e');
+      // Fallback to original method without RAG
+      return analyzeImage(base64Image: base64Image, description: description);
+    }
   }
 }

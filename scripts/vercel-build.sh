@@ -38,7 +38,7 @@ pushd "$REPO_ROOT" >/dev/null
 echo "Creating .env file from environment variables..."
 cat > .env << EOF
 GEMINI_API_KEY=${GEMINI_API_KEY:-}
-RAG_SERVER_URL=${RAG_SERVER_URL:-http://localhost:8001}
+RAG_SERVER_URL=${RAG_SERVER_URL:-}
 GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.0-flash-lite}
 API_TIMEOUT=${API_TIMEOUT:-120}
 RAG_TIMEOUT=${RAG_TIMEOUT:-120}
@@ -57,7 +57,7 @@ echo "Building web with environment variables..."
 flutter build web --release \
   --no-tree-shake-icons \
   --dart-define=GEMINI_API_KEY="${GEMINI_API_KEY:-}" \
-  --dart-define=RAG_SERVER_URL="${RAG_SERVER_URL:-http://localhost:8001}" \
+  --dart-define=RAG_SERVER_URL="${RAG_SERVER_URL:-}" \
   --dart-define=GEMINI_MODEL="${GEMINI_MODEL:-gemini-2.0-flash-lite}" \
   --dart-define=API_TIMEOUT="${API_TIMEOUT:-120}" \
   --dart-define=RAG_TIMEOUT="${RAG_TIMEOUT:-120}"
