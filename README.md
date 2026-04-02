@@ -19,7 +19,7 @@ cd mobile_jkn_anamnesa_ai
 flutter pub get
 
 cp .env.example .env
-# Insert your GEMINI_API_KEY into the .env file
+
 
 flutter run
 ```
